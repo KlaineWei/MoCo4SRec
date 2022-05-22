@@ -116,6 +116,16 @@ def main():
     parser.add_argument('--cos', action='store_true',
                         help='use cosine lr schedule')
 
+    # moco train args
+    parser.add_argument('--moco-lr', '--moco-learning-rate', default=0.01, type=float,
+                        metavar='LR', help='initial learning rate', dest='moco_lr')
+    parser.add_argument('--moco-momentum', default=0.9, type=float, metavar='M',
+                        help='momentum of SGD solver',
+                        dest='moco_momentum')
+    parser.add_argument('--moco-wd', '--moco-weight-decay', default=1e-4, type=float,
+                        metavar='W', help='weight decay (default: 1e-4)',
+                        dest='moco_weight_decay')
+
     args = parser.parse_args()
 
     set_seed(args.seed)
