@@ -165,7 +165,7 @@ class OnlineItemSimilarity:
 
 
 class OfflineItemSimilarity:
-    def __init__(self, data_file=None, similarity_path=None, model_name='ItemCF', \
+    def __init__(self, data_file=None, similarity_path=None, model_name='ItemCF',
                  dataset_name='Sports_and_Outdoors'):
         self.dataset_name = dataset_name
         self.similarity_path = similarity_path
@@ -257,7 +257,7 @@ class OfflineItemSimilarity:
             for idx, (cur_item, related_items) in c_iter:
                 self.itemSimBest.setdefault(cur_item, {})
                 for related_item, score in related_items.items():
-                    self.itemSimBest[cur_item].setdefault(related_item, 0);
+                    self.itemSimBest[cur_item].setdefault(related_item, 0)
                     self.itemSimBest[cur_item][related_item] = score / math.sqrt(N[cur_item] * N[related_item])
             self._save_dict(self.itemSimBest, save_path=save_path)
         elif self.model_name == 'Item2Vec':
@@ -303,7 +303,7 @@ class OfflineItemSimilarity:
         if self.model_name in ['ItemCF', 'ItemCF_IUF', 'Item2Vec', 'LightGCN']:
             """TODO: handle case that item not in keys"""
             if str(item) in self.similarity_model:
-                top_k_items_with_score = sorted(self.similarity_model[str(item)].items(), key=lambda x: x[1], \
+                top_k_items_with_score = sorted(self.similarity_model[str(item)].items(), key=lambda x: x[1],
                                                 reverse=True)[0:top_k]
                 if with_score:
                     return list(
@@ -311,7 +311,7 @@ class OfflineItemSimilarity:
                             top_k_items_with_score))
                 return list(map(lambda x: int(x[0]), top_k_items_with_score))
             elif int(item) in self.similarity_model:
-                top_k_items_with_score = sorted(self.similarity_model[int(item)].items(), key=lambda x: x[1], \
+                top_k_items_with_score = sorted(self.similarity_model[int(item)].items(), key=lambda x: x[1],
                                                 reverse=True)[0:top_k]
                 if with_score:
                     return list(

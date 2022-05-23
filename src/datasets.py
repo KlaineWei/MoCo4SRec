@@ -157,27 +157,27 @@ class RecWithContrastiveLearningDataset(Dataset):
             target_pos = items_with_noise[1:]
             answer = [items_with_noise[-1]]
         if self.data_type == "train":
-            cur_rec_tensors = self._data_sample_rec_task(user_id, items, input_ids, \
+            cur_rec_tensors = self._data_sample_rec_task(user_id, items, input_ids,
                                                          target_pos, answer)
             cf_tensors_list = []
             # if n_views == 2, then it's downgraded to pair-wise contrastive learning
             total_augmentaion_pairs = nCr(self.n_views, 2)
             for i in range(total_augmentaion_pairs):
                 cf_tensors_list.append(self._one_pair_data_augmentation(input_ids))
-            return (cur_rec_tensors, cf_tensors_list)
+            return cur_rec_tensors, cf_tensors_list
         elif self.data_type == 'valid':
-            cur_rec_tensors = self._data_sample_rec_task(user_id, items, input_ids, \
+            cur_rec_tensors = self._data_sample_rec_task(user_id, items, input_ids,
                                                          target_pos, answer)
             return cur_rec_tensors
         else:
-            cur_rec_tensors = self._data_sample_rec_task(user_id, items_with_noise, input_ids, \
+            cur_rec_tensors = self._data_sample_rec_task(user_id, items_with_noise, input_ids,
                                                          target_pos, answer)
             return cur_rec_tensors
 
     def __len__(self):
-        '''
+        """
         consider n_view of a single sequence as one sample
-        '''
+        """
         return len(self.user_seq)
 
 
