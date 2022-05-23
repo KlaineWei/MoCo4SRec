@@ -101,7 +101,7 @@ def main():
     # moco specific configs:
     parser.add_argument('--dim', default=3200, type=int,
                         help='feature dimension (default: 128)')
-    parser.add_argument('--k', default=65536, type=int,
+    parser.add_argument('--k', default=64000, type=int,
                         help='queue size; number of negative keys (default: 65536)')
     parser.add_argument('--m', default=0.999, type=float,
                         help='moco momentum of updating key encoder (default: 0.999)')
