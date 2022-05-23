@@ -12,7 +12,7 @@ import gensim
 
 from modules import Encoder, LayerNorm
 
-import MoCo
+from MoCo import MoCo
 
 
 class SASRecModel(nn.Module):
@@ -21,6 +21,7 @@ class SASRecModel(nn.Module):
         self.item_embeddings = nn.Embedding(args.item_size, args.hidden_size, padding_idx=0)
         self.position_embeddings = nn.Embedding(args.max_seq_length, args.hidden_size)
         self.item_encoder = Encoder(args)
+        self.moco_encoder = MoCo(args)
         self.LayerNorm = LayerNorm(args.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(args.hidden_dropout_prob)
         self.args = args
@@ -70,7 +71,7 @@ class SASRecModel(nn.Module):
         return sequence_output
 
     # moco
-    def moco_encoder(self, input_ids, device):
+    def moco_encoder(self, input_ids):
 
         attention_mask = (input_ids > 0).long()
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)  # torch.int64
@@ -89,16 +90,11 @@ class SASRecModel(nn.Module):
 
         sequence_emb = self.add_position_embedding(input_ids)
 
-        # create moco model
-        model = MoCo.MoCo(self.args, device)
-        model = model.to(device)
-        # print(model)
-
         size = len(sequence_emb) // 2
-        sequence_emb = sequence_emb.to(device)
-        moco_logits, moco_labels = model(sequence_emb[:size], sequence_emb[size:],
-                                         extended_attention_mask[:size], extended_attention_mask[size:],
-                                         output_all_encoded_layers=True)
+        sequence_emb = sequence_emb.cuda()
+        moco_logits, moco_labels = self.moco_encoder(sequence_emb[:size], sequence_emb[size:],
+                                                     extended_attention_mask[:size], extended_attention_mask[size:],
+                                                     output_all_encoded_layers=True)
 
         return moco_logits, moco_labels
 

@@ -11,7 +11,7 @@ class MoCo(nn.Module):
     https://arxiv.org/abs/1911.05722
     """
 
-    def __init__(self, args, device):
+    def __init__(self, args):
         """
         dim: feature dimension (default: 128)
         K: queue size; number of negative keys (default: 65536)
@@ -25,7 +25,6 @@ class MoCo(nn.Module):
         self.m = args.m
         self.T = args.t
         self.mlp = args.mlp
-        self.device = device
 
         # create the encoders
         # num_classes is the output fc dimension
@@ -40,8 +39,6 @@ class MoCo(nn.Module):
         for param_q, param_k in zip(self.encoder_q.parameters(), self.encoder_k.parameters()):
             param_k.data.copy_(param_q.data)  # initialize
             param_k.requires_grad = False  # not update by gradient
-            param_q.to(device)
-            param_k.to(device)
 
         # create the queue
         self.register_buffer("queue", torch.randn(self.dim, self.K))

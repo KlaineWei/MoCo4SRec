@@ -42,17 +42,20 @@ class Trainer:
 
         # self.data_name = self.args.data_name
         betas = (self.args.adam_beta1, self.args.adam_beta2)
-        self.optim = Adam(self.model.transformer_encoder.parameters(), lr=self.args.lr, betas=betas,
+        self.optim = Adam(self.model.parameters(), lr=self.args.lr, betas=betas,
                           weight_decay=self.args.weight_decay)
 
-        # moco optimizer
-        self.moco_optim = torch.optim.SGD(self.model.moco_encoder.parameters(), args.moco_lr,
-                                          momentum=args.moco_momentum,
-                                          weight_decay=args.moco_weight_decay)
+        # self.optim = Adam(self.model.transformer_encoder.parameters(), lr=self.args.lr, betas=betas,
+        #                   weight_decay=self.args.weight_decay)
+        #
+        # # moco optimizer
+        # self.moco_optim = torch.optim.SGD(self.model.moco_encoder.parameters(), args.moco_lr,
+        #                                   momentum=args.moco_momentum,
+        #                                   weight_decay=args.moco_weight_decay)
 
         print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
-        print("Rec Parameters:", sum([p.nelement() for p in self.model.transformer_encoder.parameters()]))
-        print("MoCo Parameters:", sum([p.nelement() for p in self.model.moco_encoder.parameters()]))
+        # print("Rec Parameters:", sum([p.nelement() for p in self.model.transformer_encoder.parameters()]))
+        # print("MoCo Parameters:", sum([p.nelement() for p in self.model.moco_encoder.parameters()]))
 
         # self.cf_criterion = NCELoss(self.args.temperature, self.device)
         # # self.cf_criterion = NTXent()
