@@ -71,7 +71,7 @@ class SASRecModel(nn.Module):
         return sequence_output
 
     # moco
-    def moco_encoder(self, input_ids):
+    def moco_trans_encoder(self, input_ids):
 
         attention_mask = (input_ids > 0).long()
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)  # torch.int64

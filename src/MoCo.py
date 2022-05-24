@@ -60,13 +60,21 @@ class MoCo(nn.Module):
         # keys = concat_all_gather(keys)
 
         batch_size = keys.shape[0]
+        # print("batch size:{}", batch_size)
+        # print("queue shape:{}", self.queue.shape)
 
         ptr = int(self.queue_ptr)
+        # print("ptr:{}", ptr)
         # assert self.K % batch_size == 0  # for simplicity
 
         # replace the keys at ptr (dequeue and enqueue)
-        self.queue[:, ptr:ptr + batch_size] = keys.T
+        if ptr + batch_size >= self.K:
+            self.queue[:, ptr:self.K] = keys[:self.K-ptr].T
+            self.queue[:, :ptr + batch_size - self.K] = keys[self.K-ptr:].T
+        else:
+            self.queue[:, ptr:ptr + batch_size] = keys.T
         ptr = (ptr + batch_size) % self.K  # move pointer
+        # print("ptr:{}", ptr)
 
         self.queue_ptr[0] = ptr
 

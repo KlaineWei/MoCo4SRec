@@ -202,7 +202,7 @@ class CoSeRecTrainer(Trainer):
         """
         moco_batch = torch.cat(inputs, dim=0)
         moco_batch = moco_batch.to(self.device)
-        moco_logits, moco_labels = self.model.moco_encoder(moco_batch, self.device)
+        moco_logits, moco_labels = self.model.moco_trans_encoder(moco_batch)
         criterion = nn.CrossEntropyLoss().cuda(0)
         moco_loss = criterion(moco_logits,
                               moco_labels)
