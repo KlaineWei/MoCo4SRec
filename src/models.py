@@ -21,13 +21,39 @@ class SASRecModel(nn.Module):
         self.item_embeddings = nn.Embedding(args.item_size, args.hidden_size, padding_idx=0)
         self.position_embeddings = nn.Embedding(args.max_seq_length, args.hidden_size)
         self.item_encoder = Encoder(args)
-        self.moco_encoder = MoCo(args)
+        # self.moco_encoder = MoCo(args)
         self.LayerNorm = LayerNorm(args.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(args.hidden_dropout_prob)
         self.args = args
 
         self.criterion = nn.BCELoss(reduction='none')
         self.apply(self.init_weights)
+
+        # projection head for contrastive learn task
+        # self.ph_dim = self.args.max_seq_length * self.args.hidden_size
+        # self.projection = nn.Sequential(nn.Linear(self.ph_dim, self.ph_dim * 4, bias=False),
+        #                                 nn.BatchNorm1d(self.ph_dim * 4, eps=1e-12, affine=True),
+        #                                 nn.ReLU(inplace=True),
+        #                                 nn.Linear(self.ph_dim * 4, self.ph_dim, bias=False),
+        #                                 nn.BatchNorm1d(self.ph_dim, eps=1e-12, affine=True))
+
+        # moco params
+        self.dim = args.dim
+        self.K = args.k
+        self.m = args.m
+        self.T = args.t
+
+        self.encoder_k = Encoder(args)
+
+        for param, param_k in zip(self.item_encoder.parameters(), self.encoder_k.parameters()):
+            param_k.data.copy_(param.data)  # initialize
+            param_k.requires_grad = False  # not update by gradient
+
+        # create the queue
+        self.register_buffer("queue", torch.randn(self.dim, self.K))
+        self.queue = nn.functional.normalize(self.queue, dim=0)
+
+        self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
     # Positional Embedding
     def add_position_embedding(self, sequence):
@@ -70,6 +96,38 @@ class SASRecModel(nn.Module):
         sequence_output = item_encoded_layers[-1]
         return sequence_output
 
+    @torch.no_grad()
+    def _momentum_update_key_encoder(self):
+        """
+        Momentum update of the key encoder
+        """
+        for param_q, param_k in zip(self.item_encoder.parameters(), self.encoder_k.parameters()):
+            param_k.data = param_k.data * self.m + param_q.data * (1. - self.m)
+
+    @torch.no_grad()
+    def _dequeue_and_enqueue(self, keys):
+        # gather keys before updating queue
+        # keys = concat_all_gather(keys)
+
+        batch_size = keys.shape[0]
+        # print("batch size:{}", batch_size)
+        # print("queue shape:{}", self.queue.shape)
+
+        ptr = int(self.queue_ptr)
+        # print("ptr:{}", ptr)
+        # assert self.K % batch_size == 0  # for simplicity
+
+        # replace the keys at ptr (dequeue and enqueue)
+        if ptr + batch_size >= self.K:
+            self.queue[:, ptr:self.K] = keys[:(self.K - ptr)].T
+            self.queue[:, :(ptr + batch_size - self.K)] = keys[(self.K - ptr):].T
+        else:
+            self.queue[:, ptr:(ptr + batch_size)] = keys.T
+        ptr = (ptr + batch_size) % self.K  # move pointer
+        # print("ptr:{}", ptr)
+
+        self.queue_ptr[0] = ptr
+
     # moco
     def moco_trans_encoder(self, input_ids):
 
@@ -92,11 +150,54 @@ class SASRecModel(nn.Module):
 
         size = len(sequence_emb) // 2
         sequence_emb = sequence_emb.cuda()
-        moco_logits, moco_labels = self.moco_encoder(sequence_emb[:size], sequence_emb[size:],
-                                                     extended_attention_mask[:size], extended_attention_mask[size:],
-                                                     output_all_encoded_layers=True)
 
-        return moco_logits, moco_labels
+        # q
+        q = self.item_encoder(sequence_emb[:size], extended_attention_mask[:size], output_all_encoded_layers=True)  # queries: NxC
+        q = q[-1]
+        q = q.view(sequence_emb[:size].shape[0], -1)
+        q = nn.functional.normalize(q, dim=1)
+        # q = self.projection(q)
+
+        # k
+        # compute key features
+        with torch.no_grad():  # no gradient to keys
+            self._momentum_update_key_encoder()  # update the key encoder
+
+            # shuffle for making use of BN
+            # im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
+
+            k = self.encoder_k(sequence_emb[size:], extended_attention_mask[size:], output_all_encoded_layers=True)  # keys: NxC
+            k = k[-1]
+            k = k.view(sequence_emb[size:].shape[0], -1)
+            k = nn.functional.normalize(k, dim=1)
+            # k = self.projection(k)
+
+        # compute logits
+        # Einstein sum is more intuitive
+        # positive logits: Nx1
+        l_pos = torch.einsum('nc,nc->n', [q, k]).unsqueeze(-1)
+        # print("q's shape:{}, k's shape(): {}, l_pos's shape(): {}", q.shape, k.shape, l_pos.shape)
+        # negative logits: NxK
+        l_neg = torch.einsum('nc,ck->nk', [q, self.queue.clone().detach()])
+        # print("queue's shape: {}, l_neg's shape: {}", self.queue.shape, l_neg.shape)
+
+        # logits: Nx(1+K)
+        logits = torch.cat([l_pos, l_neg], dim=1)
+
+        # apply temperature
+        logits /= self.T
+
+        # labels: positive key indicators
+        labels = torch.zeros(logits.shape[0], dtype=torch.long).cuda()
+
+        # dequeue and enqueue
+        self._dequeue_and_enqueue(k)
+        #
+        # moco_logits, moco_labels = self.moco_encoder(sequence_emb[:size], sequence_emb[size:],
+        #                                              extended_attention_mask[:size], extended_attention_mask[size:],
+        #                                              output_all_encoded_layers=True)
+
+        return logits, labels
 
     def init_weights(self, module):
         """ Initialize the weights.
