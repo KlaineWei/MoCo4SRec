@@ -29,7 +29,7 @@ class Trainer:
 
         self.total_augmentaion_pairs = nCr(self.args.n_views, 2)
         # projection head for contrastive learn task
-        self.projection = nn.Sequential(nn.Linear(self.args.max_seq_length * self.args.hidden_size, \
+        self.projection = nn.Sequential(nn.Linear(self.args.max_seq_length * self.args.hidden_size,
                                                   512, bias=False), nn.BatchNorm1d(512), nn.ReLU(inplace=True),
                                         nn.Linear(512, self.args.hidden_size, bias=True))
         if self.cuda_condition:
@@ -57,7 +57,7 @@ class Trainer:
         # print("Rec Parameters:", sum([p.nelement() for p in self.model.transformer_encoder.parameters()]))
         # print("MoCo Parameters:", sum([p.nelement() for p in self.model.moco_encoder.parameters()]))
 
-        # self.cf_criterion = NCELoss(self.args.temperature, self.device)
+        self.cf_criterion = NCELoss(self.args.temperature, self.device)
         # # self.cf_criterion = NTXent()
         # print("self.cf_criterion:", self.cf_criterion.__class__.__name__)
 
@@ -242,6 +242,7 @@ class CoSeRecTrainer(Trainer):
                 cl_losses = []
                 for cl_batch in cl_batches:
                     cl_loss = self._moco_pair_contrastive_learning(cl_batch)
+                    # cl_loss += self._one_pair_contrastive_learning(cl_batch)
                     cl_losses.append(cl_loss)
 
                 joint_loss = self.args.rec_weight * rec_loss
