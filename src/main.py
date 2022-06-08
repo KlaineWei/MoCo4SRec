@@ -26,10 +26,9 @@ def show_args_info(args):
 def main():
     # grid search
     param_grid = {
-        "lr": [0.001, 0.0005, 0.0001],
-        "t": [0.07, 0.05, 0.1],
-        'weight_decay': [0.0001, 0.0005],
-        'cf_weight': [0.1, 0.2, 0.3]
+        "lr": [0.0003, 0.0002, 0.0001, 0.00009, 0.00008],
+        "t": [0.04, 0.03, 0.02],
+        'weight_decay': [0.00003, 0.00002, 0.00001, 0.000009, 0.000008]
     }
     hyperparams = []
     for values in itertools.product(*param_grid.values()):
@@ -163,11 +162,10 @@ def main():
         args.lr = params['lr']
         args.t = params['t']
         args.weight_decay = params['weight_decay']
-        args.cf_weight = params['cf_weight']
 
         # save model args
-        args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.temperature}-{args.weight_decay}-{args.augmentation_warm_up_epoches}-{args.cf_weight}-{args.augment_threshold}'
-        args.log_file = os.path.join(args.output_dir, 'tune2', args_str + '.txt')
+        args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.t}-{args.weight_decay}'
+        args.log_file = os.path.join(args.output_dir, 'tune4', args_str + '.txt')
 
         show_args_info(args)
 
@@ -228,9 +226,6 @@ def main():
                 trainer.train(epoch)
                 # evaluate on NDCG@20
                 scores, _ = trainer.valid(epoch, full_sort=True)
-                if scores[-1:][-1] < 0.005:
-                    print("Early stopping")
-                    break
                 if epoch > 9 and scores[-1:][-1] < 0.01:
                     print("Early stopping")
                     break
