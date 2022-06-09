@@ -26,9 +26,9 @@ def show_args_info(args):
 def main():
     # grid search
     param_grid = {
-        "lr": [0.0003, 0.0002, 0.0001, 0.00009, 0.00008],
-        "t": [0.04, 0.03, 0.02],
-        'weight_decay': [0.00003, 0.00002, 0.00001, 0.000009, 0.000008]
+        "lr": [0.00035, 0.00033, 0.0003, 0.00027, 0.00025, 0.00023, 0.0002],
+        "t": [0.025, 0.023, 0.02, 0.017, 0.015],
+        'weight_decay': [0.00002, 0.000017, 0.000015, 0.000013, 0.00001, 0.000008, 0.000005]
     }
     hyperparams = []
     for values in itertools.product(*param_grid.values()):
@@ -165,7 +165,7 @@ def main():
 
         # save model args
         args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.t}-{args.weight_decay}'
-        args.log_file = os.path.join(args.output_dir, 'tune4', args_str + '.txt')
+        args.log_file = os.path.join(args.output_dir, 'tune5', args_str + '.txt')
 
         show_args_info(args)
 
