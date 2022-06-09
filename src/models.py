@@ -12,8 +12,6 @@ import gensim
 
 from modules import Encoder, LayerNorm
 
-from MoCo import MoCo
-
 
 class SASRecModel(nn.Module):
     def __init__(self, args):
@@ -152,7 +150,8 @@ class SASRecModel(nn.Module):
         sequence_emb = sequence_emb.cuda()
 
         # q
-        q = self.item_encoder(sequence_emb[:size], extended_attention_mask[:size], output_all_encoded_layers=True)  # queries: NxC
+        q = self.item_encoder(sequence_emb[:size], extended_attention_mask[:size],
+                              output_all_encoded_layers=True)  # queries: NxC
         q = q[-1]
         q = q.view(sequence_emb[:size].shape[0], -1)
         q = nn.functional.normalize(q, dim=1)
@@ -166,7 +165,8 @@ class SASRecModel(nn.Module):
             # shuffle for making use of BN
             # im_k, idx_unshuffle = self._batch_shuffle_ddp(im_k)
 
-            k = self.encoder_k(sequence_emb[size:], extended_attention_mask[size:], output_all_encoded_layers=True)  # keys: NxC
+            k = self.encoder_k(sequence_emb[size:], extended_attention_mask[size:],
+                               output_all_encoded_layers=True)  # keys: NxC
             k = k[-1]
             k = k.view(sequence_emb[size:].shape[0], -1)
             k = nn.functional.normalize(k, dim=1)
