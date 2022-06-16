@@ -6,7 +6,7 @@ import random
 
 import torch
 import torch.nn as nn
-from torch.optim import Adam
+from torch.optim import Adam, lr_scheduler
 
 from torch.utils.data import DataLoader, RandomSampler
 from datasets import RecWithContrastiveLearningDataset
@@ -44,6 +44,7 @@ class Trainer:
         betas = (self.args.adam_beta1, self.args.adam_beta2)
         self.optim = Adam(self.model.parameters(), lr=self.args.lr, betas=betas,
                           weight_decay=self.args.weight_decay)
+        # self.scheduler = lr_scheduler.CosineAnnealingLR(self.optim, args.epochs)
 
         # self.optim = Adam(self.model.transformer_encoder.parameters(), lr=self.args.lr, betas=betas,
         #                   weight_decay=self.args.weight_decay)
@@ -259,6 +260,7 @@ class CoSeRecTrainer(Trainer):
                 self.optim.zero_grad()
                 joint_loss.backward()
                 self.optim.step()
+                # self.scheduler.step()
 
                 rec_avg_loss += rec_loss.item()
 

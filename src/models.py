@@ -40,6 +40,7 @@ class SASRecModel(nn.Module):
         self.K = args.k
         self.m = args.m
         self.T = args.t
+        self.phi = args.phi
 
         self.encoder_k = Encoder(args)
 
@@ -121,6 +122,10 @@ class SASRecModel(nn.Module):
             self.queue[:, :(ptr + batch_size - self.K)] = keys[(self.K - ptr):].T
         else:
             self.queue[:, ptr:(ptr + batch_size)] = keys.T
+        # out_ids = torch.arange(batch_size).cuda()
+        # out_ids = torch.fmod(out_ids + ptr, self.K).long()
+        # self.queue.index_copy_(1, out_ids, keys)
+
         ptr = (ptr + batch_size) % self.K  # move pointer
         # print("ptr:{}", ptr)
 
@@ -180,6 +185,10 @@ class SASRecModel(nn.Module):
         # negative logits: NxK
         l_neg = torch.einsum('nc,ck->nk', [q, self.queue.clone().detach()])
         # print("queue's shape: {}, l_neg's shape: {}", self.queue.shape, l_neg.shape)
+
+        weights = torch.where(l_neg > self.phi, 0, 1)
+
+        l_neg = l_neg * weights
 
         # logits: Nx(1+K)
         logits = torch.cat([l_pos, l_neg], dim=1)

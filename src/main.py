@@ -99,7 +99,7 @@ def main():
     parser.add_argument('--max_seq_length', default=50, type=int)
 
     # train args
-    parser.add_argument("--lr", type=float, default=0.0003, help="learning rate of adam")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning rate of adam")
     parser.add_argument("--batch_size", type=int, default=256, help="number of batch_size")
     parser.add_argument("--epochs", type=int, default=300, help="number of epochs")
     parser.add_argument("--no_cuda", action="store_true")
@@ -113,7 +113,7 @@ def main():
                         help="weight of rec task")
 
     # learning related
-    parser.add_argument("--weight_decay", type=float, default=0.00008, help="weight_decay of adam")
+    parser.add_argument("--weight_decay", type=float, default=0.0, help="weight_decay of adam")
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="adam first beta value")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="adam second beta value")
 
@@ -124,7 +124,7 @@ def main():
                         help='queue size; number of negative keys (default: 65536)')
     parser.add_argument('--m', default=0.999, type=float,
                         help='moco momentum of updating key encoder (default: 0.999)')
-    parser.add_argument('--t', default=0.02, type=float,
+    parser.add_argument('--t', default=0.07, type=float,
                         help='softmax temperature (default: 0.07)')
 
     # options for moco v2
@@ -144,6 +144,7 @@ def main():
     parser.add_argument('--moco-wd', '--moco-weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='moco_weight_decay')
+    parser.add_argument('--phi', default=0.4, type=float, help='phi to control weight threshold')
 
     args = parser.parse_args()
 
@@ -166,8 +167,8 @@ def main():
     # args.weight_decay = params['weight_decay']
 
     # save model args
-    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.t}-{args.weight_decay}'
-    args.log_file = os.path.join(args.output_dir, 'tune6', args_str + '.txt')
+    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.phi}'
+    args.log_file = os.path.join(args.output_dir, 'tune8', args_str + '.txt')
 
     show_args_info(args)
 
