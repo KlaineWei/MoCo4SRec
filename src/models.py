@@ -60,9 +60,21 @@ class SASRecModel(nn.Module):
         seq_length = sequence.size(1)
         position_ids = torch.arange(seq_length, dtype=torch.long, device=sequence.device)
         position_ids = position_ids.unsqueeze(0).expand_as(sequence)
+        # add token shuffle
+        if self.args.token_shuffle:
+            position_ids = position_ids[:, torch.randperm(position_ids.size()[1])]
+
         item_embeddings = self.item_embeddings(sequence)
         position_embeddings = self.position_embeddings(position_ids)
+
+        x = 0.01 + torch.zeros(position_embeddings.shape[0], position_embeddings.shape[1], position_embeddings.shape[2],
+                               dtype=torch.float32, device=sequence.device)  # add guassian noise
+        noise = torch.normal(mean=torch.tensor([0.0]).to(sequence.device), std=x).to(
+            sequence.device)  # add guassian noise.
+
         sequence_emb = item_embeddings + position_embeddings
+        if self.args.guassian_noise:
+            sequence_emb += noise
         sequence_emb = self.LayerNorm(sequence_emb)
         sequence_emb = self.dropout(sequence_emb)
 
@@ -130,6 +142,30 @@ class SASRecModel(nn.Module):
         # print("ptr:{}", ptr)
 
         self.queue_ptr[0] = ptr
+
+    ######################
+    ### from MoCo repo ###
+    ######################
+    def batch_shuffle_single_gpu(self, x):
+        """
+        Batch shuffle, for making use of BatchNorm.
+        """
+        # random shuffle index
+        idx_shuffle = torch.randperm(x.shape[0]).cuda()
+
+        # index for restoring
+        idx_unshuffle = torch.argsort(idx_shuffle)
+
+        return x[idx_shuffle], idx_unshuffle
+
+    ######################
+    ### from MoCo repo ###
+    ######################
+    def batch_unshuffle_single_gpu(self, x, idx_unshuffle):
+        """
+        Undo batch shuffle.
+        """
+        return x[idx_unshuffle]
 
     # moco
     def moco_trans_encoder(self, input_ids):

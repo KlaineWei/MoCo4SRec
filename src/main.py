@@ -144,7 +144,10 @@ def main():
     parser.add_argument('--moco-wd', '--moco-weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='moco_weight_decay')
+
     parser.add_argument('--phi', default=0.4, type=float, help='phi to control weight threshold')
+    parser.add_argument('--token_shuffle', default=False, action='store_true', help='shuffle position ids')
+    parser.add_argument('--guassian_noise', default=False, action='store_true', help='add guassian noise to embeddings')
 
     args = parser.parse_args()
 
@@ -167,8 +170,8 @@ def main():
     # args.weight_decay = params['weight_decay']
 
     # save model args
-    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.phi}'
-    args.log_file = os.path.join(args.output_dir, 'tune8', args_str + '.txt')
+    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.phi}-{args.token_shuffle}-{args.guassian_noise}'
+    args.log_file = os.path.join(args.output_dir, 'tune9', args_str + '.txt')
 
     show_args_info(args)
 
