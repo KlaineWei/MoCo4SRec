@@ -28,18 +28,20 @@ class SASRecModel(nn.Module):
         self.apply(self.init_weights)
 
         # projection head for contrastive learn task
-        # self.ph_dim = self.args.max_seq_length * self.args.hidden_size
-        # self.projection = nn.Sequential(nn.Linear(self.ph_dim, self.ph_dim * 4, bias=False),
-        #                                 nn.BatchNorm1d(self.ph_dim * 4, eps=1e-12, affine=True),
-        #                                 nn.ReLU(inplace=True),
-        #                                 nn.Linear(self.ph_dim * 4, self.ph_dim, bias=False),
-        #                                 nn.BatchNorm1d(self.ph_dim, eps=1e-12, affine=True))
+        self.input_dim = self.args.max_seq_length * self.args.hidden_size
+        self.ph_dim = self.args.dim
+        self.projection = nn.Sequential(nn.Linear(self.input_dim, self.ph_dim, bias=False),
+                                        nn.BatchNorm1d(self.ph_dim, eps=1e-12, affine=True),
+                                        nn.ReLU(inplace=True),
+                                        nn.Linear(self.ph_dim, self.ph_dim, bias=False),
+                                        nn.BatchNorm1d(self.ph_dim, eps=1e-12, affine=True))
 
         # moco params
         self.dim = args.dim
         self.K = args.k
         self.m = args.m
         self.T = args.t
+        self.phi = args.phi
 
         self.encoder_k = Encoder(args)
 
@@ -59,9 +61,21 @@ class SASRecModel(nn.Module):
         seq_length = sequence.size(1)
         position_ids = torch.arange(seq_length, dtype=torch.long, device=sequence.device)
         position_ids = position_ids.unsqueeze(0).expand_as(sequence)
+        # add token shuffle
+        if self.args.token_shuffle:
+            position_ids = position_ids[:, torch.randperm(position_ids.size()[1])]
+
         item_embeddings = self.item_embeddings(sequence)
         position_embeddings = self.position_embeddings(position_ids)
+
+        x = 0.01 + torch.zeros(position_embeddings.shape[0], position_embeddings.shape[1], position_embeddings.shape[2],
+                               dtype=torch.float32, device=sequence.device)  # add guassian noise
+        noise = torch.normal(mean=torch.tensor([0.0]).to(sequence.device), std=x).to(
+            sequence.device)  # add guassian noise.
+
         sequence_emb = item_embeddings + position_embeddings
+        if self.args.guassian_noise:
+            sequence_emb += noise
         sequence_emb = self.LayerNorm(sequence_emb)
         sequence_emb = self.dropout(sequence_emb)
 
@@ -121,10 +135,38 @@ class SASRecModel(nn.Module):
             self.queue[:, :(ptr + batch_size - self.K)] = keys[(self.K - ptr):].T
         else:
             self.queue[:, ptr:(ptr + batch_size)] = keys.T
+        # out_ids = torch.arange(batch_size).cuda()
+        # out_ids = torch.fmod(out_ids + ptr, self.K).long()
+        # self.queue.index_copy_(1, out_ids, keys)
+
         ptr = (ptr + batch_size) % self.K  # move pointer
         # print("ptr:{}", ptr)
 
         self.queue_ptr[0] = ptr
+
+    ######################
+    ### from MoCo repo ###
+    ######################
+    def batch_shuffle_single_gpu(self, x):
+        """
+        Batch shuffle, for making use of BatchNorm.
+        """
+        # random shuffle index
+        idx_shuffle = torch.randperm(x.shape[0]).cuda()
+
+        # index for restoring
+        idx_unshuffle = torch.argsort(idx_shuffle)
+
+        return x[idx_shuffle], idx_unshuffle
+
+    ######################
+    ### from MoCo repo ###
+    ######################
+    def batch_unshuffle_single_gpu(self, x, idx_unshuffle):
+        """
+        Undo batch shuffle.
+        """
+        return x[idx_unshuffle]
 
     # moco
     def moco_trans_encoder(self, input_ids):
@@ -155,7 +197,8 @@ class SASRecModel(nn.Module):
         q = q[-1]
         q = q.view(sequence_emb[:size].shape[0], -1)
         q = nn.functional.normalize(q, dim=1)
-        # q = self.projection(q)
+        if self.args.projection_head:
+            q = self.projection(q)
 
         # k
         # compute key features
@@ -170,7 +213,8 @@ class SASRecModel(nn.Module):
             k = k[-1]
             k = k.view(sequence_emb[size:].shape[0], -1)
             k = nn.functional.normalize(k, dim=1)
-            # k = self.projection(k)
+            if self.args.projection_head:
+                k = self.projection(k)
 
         # compute logits
         # Einstein sum is more intuitive
@@ -180,6 +224,10 @@ class SASRecModel(nn.Module):
         # negative logits: NxK
         l_neg = torch.einsum('nc,ck->nk', [q, self.queue.clone().detach()])
         # print("queue's shape: {}, l_neg's shape: {}", self.queue.shape, l_neg.shape)
+
+        weights = torch.where(l_neg > self.phi, 0, 1)
+
+        l_neg = l_neg * weights
 
         # logits: Nx(1+K)
         logits = torch.cat([l_pos, l_neg], dim=1)
@@ -192,10 +240,6 @@ class SASRecModel(nn.Module):
 
         # dequeue and enqueue
         self._dequeue_and_enqueue(k)
-        #
-        # moco_logits, moco_labels = self.moco_encoder(sequence_emb[:size], sequence_emb[size:],
-        #                                              extended_attention_mask[:size], extended_attention_mask[size:],
-        #                                              output_all_encoded_layers=True)
 
         return logits, labels
 
