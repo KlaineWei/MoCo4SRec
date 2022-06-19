@@ -28,12 +28,13 @@ class SASRecModel(nn.Module):
         self.apply(self.init_weights)
 
         # projection head for contrastive learn task
-        # self.ph_dim = self.args.max_seq_length * self.args.hidden_size
-        # self.projection = nn.Sequential(nn.Linear(self.ph_dim, self.ph_dim * 4, bias=False),
-        #                                 nn.BatchNorm1d(self.ph_dim * 4, eps=1e-12, affine=True),
-        #                                 nn.ReLU(inplace=True),
-        #                                 nn.Linear(self.ph_dim * 4, self.ph_dim, bias=False),
-        #                                 nn.BatchNorm1d(self.ph_dim, eps=1e-12, affine=True))
+        self.input_dim = self.args.max_seq_length * self.args.hidden_size
+        self.ph_dim = self.args.dim
+        self.projection = nn.Sequential(nn.Linear(self.input_dim, self.ph_dim, bias=False),
+                                        nn.BatchNorm1d(self.ph_dim, eps=1e-12, affine=True),
+                                        nn.ReLU(inplace=True),
+                                        nn.Linear(self.ph_dim, self.ph_dim, bias=False),
+                                        nn.BatchNorm1d(self.ph_dim, eps=1e-12, affine=True))
 
         # moco params
         self.dim = args.dim
@@ -196,7 +197,8 @@ class SASRecModel(nn.Module):
         q = q[-1]
         q = q.view(sequence_emb[:size].shape[0], -1)
         q = nn.functional.normalize(q, dim=1)
-        # q = self.projection(q)
+        if self.args.projection_head:
+            q = self.projection(q)
 
         # k
         # compute key features
@@ -211,7 +213,8 @@ class SASRecModel(nn.Module):
             k = k[-1]
             k = k.view(sequence_emb[size:].shape[0], -1)
             k = nn.functional.normalize(k, dim=1)
-            # k = self.projection(k)
+            if self.args.projection_head:
+                k = self.projection(k)
 
         # compute logits
         # Einstein sum is more intuitive
@@ -237,10 +240,6 @@ class SASRecModel(nn.Module):
 
         # dequeue and enqueue
         self._dequeue_and_enqueue(k)
-        #
-        # moco_logits, moco_labels = self.moco_encoder(sequence_emb[:size], sequence_emb[size:],
-        #                                              extended_attention_mask[:size], extended_attention_mask[size:],
-        #                                              output_all_encoded_layers=True)
 
         return logits, labels
 

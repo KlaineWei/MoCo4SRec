@@ -149,6 +149,11 @@ def main():
     parser.add_argument('--token_shuffle', default=False, action='store_true', help='shuffle position ids')
     parser.add_argument('--guassian_noise', default=False, action='store_true', help='add guassian noise to embeddings')
 
+    parser.add_argument('--projection_head', default=False, action='store_true', help='add projection head to the '
+                                                                                      'output of q & k')
+    parser.add_argument('--noise_times', default=1, type=int, help='noise times')
+    parser.add_argument('--pgd', default=4, type=int, help='iterations to get negatives')
+
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -170,8 +175,8 @@ def main():
     # args.weight_decay = params['weight_decay']
 
     # save model args
-    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.phi}-{args.token_shuffle}-{args.guassian_noise}'
-    args.log_file = os.path.join(args.output_dir, 'tune9', args_str + '.txt')
+    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.phi}'
+    args.log_file = os.path.join(args.output_dir, 'tune12', args_str + '.txt')
 
     show_args_info(args)
 

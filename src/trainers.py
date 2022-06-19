@@ -44,7 +44,7 @@ class Trainer:
         betas = (self.args.adam_beta1, self.args.adam_beta2)
         self.optim = Adam(self.model.parameters(), lr=self.args.lr, betas=betas,
                           weight_decay=self.args.weight_decay)
-        # self.scheduler = lr_scheduler.CosineAnnealingLR(self.optim, args.epochs)
+        self.scheduler = lr_scheduler.CosineAnnealingLR(self.optim, args.epochs, eta_min=0.0005)
 
         # self.optim = Adam(self.model.transformer_encoder.parameters(), lr=self.args.lr, betas=betas,
         #                   weight_decay=self.args.weight_decay)
@@ -196,6 +196,72 @@ class CoSeRecTrainer(Trainer):
                                     cl_output_slice[1])
         return cl_loss
 
+    def _debias_loss(self, cl_output_slice):
+
+        z1, z2 = cl_output_slice[0], cl_output_slice[1]
+        batch_size, hidden_size = z2.size()
+        z_negative = torch.randn([int(batch_size * self.args.noise_times), hidden_size]).cuda()  # * variation + avg
+        z_negative.requires_grad = True
+
+        cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+        cos_sim = cos(z1, z2)
+        cos_sim_diag = torch.diag(cos_sim)
+        labels = torch.arange(cos_sim.size(0)).long().cuda()
+        loss_fct = nn.CrossEntropyLoss()
+
+        for _ in range(self.args.pgd):
+            cos_sim_negative = cos(z1, z_negative)
+            cos_sim_negative_diag = torch.diag(cos_sim_negative)
+            cos_sim_fused = torch.cat([cos_sim_diag, cos_sim_negative_diag], 1)
+
+            loss = loss_fct(cos_sim_fused, labels)
+
+            noise_grad = torch.autograd.grad(loss, z_negative, retain_graph=True)[0]
+
+            # print("labels", labels)
+            # print("z_negative", z_negative)
+            # print("cos_sim_fused", cos_sim_fused)
+            # print("cos_sim", cos_sim)
+            # print("cos_sim_negative", cos_sim_negative)
+            # print("loss", loss)
+            # print("noise_grad", noise_grad)
+
+            z_negative = z_negative + (noise_grad / torch.norm(noise_grad, dim=-1, keepdim=True)).mul_(1e-3)
+            # noise = torch.clamp(noise, 0, 1.0)
+            z_negative = torch.where(torch.isnan(z_negative), torch.zeros_like(z_negative), z_negative)
+
+        cos_sim_negative = cos(z1, z_negative)
+        cos_sim_negative_diag = torch.diag(cos_sim_negative)
+        cos_sim_diag = torch.cat([cos_sim_diag, cos_sim_negative_diag], 1)
+        labels_dis = torch.cat(
+            [torch.eye(cos_sim_diag.size(0), device=cos_sim_diag.device)[labels], torch.zeros_like(cos_sim_negative_diag)], -1)
+        weights = torch.where(cos_sim_negative_diag > self.args.phi, 0, 1)
+        mask_weights = torch.eye(cos_sim_diag.size(0), device=cos_sim_diag.device) - torch.diag_embed(torch.diag(weights))
+        weights = weights + torch.cat([mask_weights, torch.zeros_like(cos_sim_negative_diag)], -1)
+        soft_cos_sim_diag = torch.softmax(cos_sim_diag * weights, -1)
+        loss = - (labels_dis * torch.log(soft_cos_sim_diag) + (1 - labels_dis) * torch.log(1 - soft_cos_sim_diag))
+        loss = torch.mean(loss)
+
+        return loss
+
+    def _debias_contrastive_learning(self, inputs):
+        """
+        contrastive learning given one pair sequences (batch)
+        inputs: [batch1_augmented_data, batch2_augmentated_data]
+        """
+        cl_batch = torch.cat(inputs, dim=0)
+        cl_batch = cl_batch.to(self.device)
+        cl_sequence_output = self.model.transformer_encoder(cl_batch)
+        # cf_sequence_output = cf_sequence_output[:, -1, :]
+        cl_sequence_flatten = cl_sequence_output.view(cl_batch.shape[0], -1)
+        # cf_output = self.projection(cf_sequence_flatten)
+        batch_size = cl_batch.shape[0] // 2
+        cl_output_slice = torch.split(cl_sequence_flatten, batch_size)
+
+        cl_loss = self._debias_loss(cl_output_slice)
+
+        return cl_loss
+
     def _moco_pair_contrastive_learning(self, inputs):
         """
         contrastive learning given one pair sequences (batch)
@@ -250,6 +316,7 @@ class CoSeRecTrainer(Trainer):
                 moco_losses = []
                 for moco_batch in moco_batches:
                     moco_loss = self._moco_pair_contrastive_learning(moco_batch)
+                    # moco_loss = self._debias_contrastive_learning(moco_batch)
                     moco_losses.append(moco_loss)
 
                 joint_loss = self.args.rec_weight * rec_loss
@@ -260,7 +327,6 @@ class CoSeRecTrainer(Trainer):
                 self.optim.zero_grad()
                 joint_loss.backward()
                 self.optim.step()
-                # self.scheduler.step()
 
                 rec_avg_loss += rec_loss.item()
 
@@ -272,6 +338,8 @@ class CoSeRecTrainer(Trainer):
                     moco_sum_avg_loss += moco_loss.item()
 
                 joint_avg_loss += joint_loss.item()
+
+            self.scheduler.step()
 
             post_fix = {
                 "epoch": epoch,
