@@ -41,6 +41,7 @@ def main():
     # system args
     parser.add_argument('--data_dir', default='../data/', type=str)
     parser.add_argument('--output_dir', default='output/', type=str)
+    parser.add_argument('--tune_dir', default='tune/', type=str)
     parser.add_argument('--data_name', default='Sports_and_Outdoors', type=str)
     parser.add_argument('--do_eval', action='store_true')
     parser.add_argument('--model_idx', default=0, type=int, help="model idenfier 10, 20, 30...")
@@ -154,6 +155,8 @@ def main():
     parser.add_argument('--noise_times', default=1, type=int, help='noise times')
     parser.add_argument('--pgd', default=4, type=int, help='iterations to get negatives')
 
+    parser.add_argument('--sch_min', default=0, type=float, help='min value of scheduler')
+
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -175,8 +178,8 @@ def main():
     # args.weight_decay = params['weight_decay']
 
     # save model args
-    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.phi}'
-    args.log_file = os.path.join(args.output_dir, 'tune12', args_str + '.txt')
+    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.phi}-{args.sch_min}-{args.tune_dir}'
+    args.log_file = os.path.join(args.output_dir, args.tune_dir, args_str + '.txt')
 
     show_args_info(args)
 

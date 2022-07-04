@@ -44,7 +44,7 @@ class Trainer:
         betas = (self.args.adam_beta1, self.args.adam_beta2)
         self.optim = Adam(self.model.parameters(), lr=self.args.lr, betas=betas,
                           weight_decay=self.args.weight_decay)
-        self.scheduler = lr_scheduler.CosineAnnealingLR(self.optim, args.epochs, eta_min=0.0005)
+        self.scheduler = lr_scheduler.CosineAnnealingLR(self.optim, args.epochs, eta_min=self.args.sch_min)
 
         # self.optim = Adam(self.model.transformer_encoder.parameters(), lr=self.args.lr, betas=betas,
         #                   weight_decay=self.args.weight_decay)
