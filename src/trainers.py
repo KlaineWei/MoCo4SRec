@@ -164,14 +164,14 @@ class Trainer:
         return rating_pred
 
 
-class CoSeRecTrainer(Trainer):
+class MoCo4SRecTrainer(Trainer):
 
     def __init__(self, model,
                  train_dataloader,
                  eval_dataloader,
                  test_dataloader,
                  args):
-        super(CoSeRecTrainer, self).__init__(
+        super(MoCo4SRecTrainer, self).__init__(
             model,
             train_dataloader,
             eval_dataloader,
@@ -321,7 +321,7 @@ class CoSeRecTrainer(Trainer):
 
                 joint_loss = self.args.rec_weight * rec_loss
                 for cl_loss in cl_losses:
-                    joint_loss += self.args.cf_weight * cl_loss
+                    joint_loss += self.args.cl_weight * cl_loss
                 for moco_loss in moco_losses:
                     joint_loss += self.args.moco_weight * moco_loss
                 self.optim.zero_grad()

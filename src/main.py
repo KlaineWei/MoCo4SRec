@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 
 from datasets import RecWithContrastiveLearningDataset
 
-from trainers import CoSeRecTrainer
+from trainers import MoCo4SRecTrainer
 from models import SASRecModel, OfflineItemSimilarity, OnlineItemSimilarity
 from utils import EarlyStopping, get_user_seqs, get_item2attribute_json, check_path, set_seed
 
@@ -89,7 +89,7 @@ def main():
                         help='Number of augmented data for each sequence - not studied.')
 
     # model args
-    parser.add_argument("--model_name", default='CoSeRec', type=str)
+    parser.add_argument("--model_name", default='MoCo4SRec', type=str)
     parser.add_argument("--hidden_size", type=int, default=64, help="hidden size of transformer model")
     parser.add_argument("--num_hidden_layers", type=int, default=2, help="number of layers")
     parser.add_argument('--num_attention_heads', default=2, type=int)
@@ -106,7 +106,7 @@ def main():
     parser.add_argument("--no_cuda", action="store_true")
     parser.add_argument("--log_freq", type=int, default=1, help="per epoch print res")
     parser.add_argument("--seed", default=1, type=int)
-    parser.add_argument("--cf_weight", type=float, default=0.1,
+    parser.add_argument("--cl_weight", type=float, default=0.1,
                         help="weight of contrastive learning task")
     parser.add_argument("--moco_weight", type=float, default=0.1,
                         help="weight of moco contrastive learning task")
@@ -121,30 +121,12 @@ def main():
     # moco specific configs:
     parser.add_argument('--dim', default=3200, type=int,
                         help='feature dimension (default: 128)')
-    parser.add_argument('--k', default=192000, type=int,
+    parser.add_argument('--k', default=160000, type=int,
                         help='queue size; number of negative keys (default: 65536)')
     parser.add_argument('--m', default=0.999, type=float,
                         help='moco momentum of updating key encoder (default: 0.999)')
     parser.add_argument('--t', default=0.07, type=float,
                         help='softmax temperature (default: 0.07)')
-
-    # options for moco v2
-    parser.add_argument('--mlp', default=False, action='store_true',
-                        help='use mlp head')
-    parser.add_argument('--aug-plus', action='store_true',
-                        help='use moco v2 data augmentation')
-    parser.add_argument('--cos', action='store_true',
-                        help='use cosine lr schedule')
-
-    # moco train args
-    parser.add_argument('--moco-lr', '--moco-learning-rate', default=0.01, type=float,
-                        metavar='LR', help='initial learning rate', dest='moco_lr')
-    parser.add_argument('--moco-momentum', default=0.9, type=float, metavar='M',
-                        help='momentum of SGD solver',
-                        dest='moco_momentum')
-    parser.add_argument('--moco-wd', '--moco-weight-decay', default=1e-4, type=float,
-                        metavar='W', help='weight decay (default: 1e-4)',
-                        dest='moco_weight_decay')
 
     parser.add_argument('--phi', default=0.4, type=float, help='phi to control weight threshold')
     parser.add_argument('--token_shuffle', default=False, action='store_true', help='shuffle position ids')
@@ -178,7 +160,7 @@ def main():
     # args.weight_decay = params['weight_decay']
 
     # save model args
-    args_str = f'{args.model_name}-{args.data_name}-{args.lr}-{args.phi}-{args.sch_min}-{args.tune_dir}'
+    args_str = f'{args.model_name}-{args.data_name}'
     args.log_file = os.path.join(args.output_dir, args.tune_dir, args_str + '.txt')
 
     show_args_info(args)
@@ -191,7 +173,7 @@ def main():
 
     # save model
     checkpoint = args_str + '.pt'
-    args.checkpoint_path = os.path.join(args.output_dir, checkpoint)
+    args.checkpoint_path = os.path.join(args.output_dir, args.tune_dir, checkpoint)
 
     # -----------   pre-computation for item similarity   ------------ #
     args.similarity_model_path = os.path.join(args.data_dir,
@@ -224,8 +206,8 @@ def main():
 
     model = SASRecModel(args=args)
 
-    trainer = CoSeRecTrainer(model, train_dataloader, eval_dataloader,
-                             test_dataloader, args)
+    trainer = MoCo4SRecTrainer(model, train_dataloader, eval_dataloader,
+                               test_dataloader, args)
 
     if args.do_eval:
         trainer.args.train_matrix = test_rating_matrix
