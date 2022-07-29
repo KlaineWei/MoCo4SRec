@@ -216,7 +216,7 @@ def main():
         scores, result_info = trainer.test(0, full_sort=True)
 
     else:
-        print(f'Train CoSeRec')
+        print(f'Train {args.model_name}')
         early_stopping = EarlyStopping(args.checkpoint_path, patience=40, verbose=True)
         for epoch in range(args.epochs):
             trainer.train(epoch)
