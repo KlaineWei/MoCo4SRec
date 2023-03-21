@@ -24,18 +24,6 @@ def show_args_info(args):
 
 
 def main():
-    # grid search
-    # param_grid = {
-    #     "lr": [0.0003, 0.00027, 0.00025, 0.00023, 0.0002],
-    #     "t": [0.025, 0.023, 0.02, 0.017, 0.015],
-    #     'weight_decay': [0.00002, 0.000017, 0.000015, 0.000013, 0.00001, 0.000008, 0.000005]
-    # }
-    # hyperparams = []
-    # for values in itertools.product(*param_grid.values()):
-    #     point = dict(zip(param_grid.keys(), values))
-    #     hyperparams.append(point)
-    #
-    # for params in hyperparams:
 
     parser = argparse.ArgumentParser()
     # system args
@@ -161,10 +149,6 @@ def main():
     args.item_size = max_item + 2
     args.mask_id = max_item + 1
 
-    # args.lr = params['lr']
-    # args.t = params['t']
-    # args.weight_decay = params['weight_decay']
-
     # save model args
     args_str = f'{args.model_name}-{args.data_name}'
     args.log_file = os.path.join(args.output_dir, args.tune_dir, args_str + '.txt')
@@ -228,12 +212,6 @@ def main():
             trainer.train(epoch)
             # evaluate on NDCG@20
             scores, _ = trainer.valid(epoch, full_sort=True)
-            # if epoch > 9 and scores[-1:][-1] < 0.01:
-            #     print("Early stopping")
-            #     break
-            # if epoch > 50 and scores[-1:][-1] < 0.02:
-            #     print("Early stopping")
-            #     break
             early_stopping(np.array(scores[-1:]), trainer.model)
             if early_stopping.early_stop:
                 print("Early stopping")
