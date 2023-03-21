@@ -137,7 +137,13 @@ def main():
     parser.add_argument('--noise_times', default=1, type=int, help='noise times')
     parser.add_argument('--pgd', default=4, type=int, help='iterations to get negatives')
 
-    parser.add_argument('--sch_min', default=0, type=float, help='min value of scheduler')
+    parser.add_argument('--sch_min', default=0.0005, type=float, help='min value of scheduler')
+    
+    parser.add_argument('--cutoff', default=False, action='store_true', help='cutoff tokens')
+    
+    parser.add_argument("--direction", default='random', type=str, help='cutoff direction')
+    
+    parser.add_argument('--cutoff_rate', default=0.1, type=float, help='cutoff rate')
 
     args = parser.parse_args()
 
@@ -216,7 +222,7 @@ def main():
         scores, result_info = trainer.test(0, full_sort=True)
 
     else:
-        print(f'Train CoSeRec')
+        print(f'Train {args.model_name}')
         early_stopping = EarlyStopping(args.checkpoint_path, patience=40, verbose=True)
         for epoch in range(args.epochs):
             trainer.train(epoch)

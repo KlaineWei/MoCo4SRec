@@ -1,1 +1,21 @@
-python main.py --data_name Sports_and_Outdoors
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIM' --token_shuffle --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIM' --token_shuffle --cutoff --direction 'random'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIM' --guassian_noise --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIM' --guassian_noise --cutoff --direction 'random'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIC' --token_shuffle --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIC' --token_shuffle --cutoff --direction 'random'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIC' --guassian_noise --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIC' --guassian_noise --cutoff --direction 'random'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIM' --guassian_noise --token_shuffle
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIC' --guassian_noise --token_shuffle
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIM' --guassian_noise --token_shuffle --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIC' --guassian_noise --token_shuffle --cutoff --direction 'random'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIMC' --token_shuffle --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIMC' --token_shuffle --cutoff --direction 'random'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIMC' --guassian_noise --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIMC' --guassian_noise --cutoff --direction 'random'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIMC' --guassian_noise --token_shuffle
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIC' --guassian_noise --token_shuffle --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIM' --guassian_noise --token_shuffle --cutoff --direction 'random'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIMC' --guassian_noise --token_shuffle --cutoff --direction 'column'
+python main-augab.py --data_name Sports_and_Outdoors --k 166400 --sch_min 0.0005 --phi 0.51 --tune_dir augab --augment_type_for_short 'SIMC' --guassian_noise --token_shuffle --cutoff --direction 'random'

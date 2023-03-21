@@ -56,13 +56,13 @@ class SASRecModel(nn.Module):
         self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
     # Positional Embedding
-    def add_position_embedding(self, sequence):
+    def add_position_embedding(self, sequence, shuffle=False, usenoise=False):
 
         seq_length = sequence.size(1)
         position_ids = torch.arange(seq_length, dtype=torch.long, device=sequence.device)
         position_ids = position_ids.unsqueeze(0).expand_as(sequence)
         # add token shuffle
-        if self.args.token_shuffle:
+        if shuffle:
             position_ids = position_ids[:, torch.randperm(position_ids.size()[1])]
 
         item_embeddings = self.item_embeddings(sequence)
@@ -74,15 +74,50 @@ class SASRecModel(nn.Module):
             sequence.device)  # add guassian noise.
 
         sequence_emb = item_embeddings + position_embeddings
-        if self.args.guassian_noise:
+        if usenoise:
             sequence_emb += noise
         sequence_emb = self.LayerNorm(sequence_emb)
         sequence_emb = self.dropout(sequence_emb)
 
         return sequence_emb
+    
+    # Cutoff Embedding in row, coloum or random direction
+    def cutoff_embeddings(self, sequence_emb, attention_mask, direction, rate):
+        bsz, seq_len, emb_size = sequence_emb.shape
+        cutoff_embeddings = []
+        for bsz_id in range(bsz):
+            sample_embedding = sequence_emb[bsz_id]
+            sample_mask = attention_mask[bsz_id]
+            if direction == "row":
+                num_dimensions = sample_mask.sum().int().item()  # number of tokens
+                dim_index = 0
+            elif direction == "column":
+                num_dimensions = emb_size  # number of features
+                dim_index = 1
+            elif direction == "random":
+                num_dimensions = sample_mask.sum().int().item() * emb_size
+                dim_index = 0
+            else:
+                raise ValueError(f"direction should be either row or column, but got {direction}")
+            num_cutoff_indexes = int(num_dimensions * rate)
+            if num_cutoff_indexes < 0 or num_cutoff_indexes > num_dimensions:
+                raise ValueError(f"number of cutoff dimensions should be in (0, {num_dimensions}), but got {num_cutoff_indexes}")
+            indexes = list(range(num_dimensions))
+            import random
+            random.shuffle(indexes)
+            cutoff_indexes = indexes[:num_cutoff_indexes]
+            if direction == "random":
+                sample_embedding = sample_embedding.reshape(-1)
+            cutoff_embedding = torch.index_fill(sample_embedding, dim_index, torch.tensor(cutoff_indexes, dtype=torch.long).to(device=sequence_emb.device), 0.0)
+            if direction == "random":
+                cutoff_embedding = cutoff_embedding.reshape(seq_len, emb_size)
+            cutoff_embeddings.append(cutoff_embedding.unsqueeze(0))
+        cutoff_embeddings = torch.cat(cutoff_embeddings, 0)
+        assert cutoff_embeddings.shape == sequence_emb.shape, (cutoff_embeddings.shape, sequence_emb.shape)
+        return cutoff_embeddings
 
     # model same as SASRec
-    def transformer_encoder(self, input_ids):
+    def transformer_encoder(self, input_ids, cutoff=False, shuffle=False, noise=False):
 
         attention_mask = (input_ids > 0).long()
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)  # torch.int64
@@ -99,7 +134,10 @@ class SASRecModel(nn.Module):
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
-        sequence_emb = self.add_position_embedding(input_ids)
+        sequence_emb = self.add_position_embedding(input_ids, shuffle=shuffle, usenoise=noise)
+        
+        if cutoff:
+            sequence_emb = self.cutoff_embeddings(sequence_emb, attention_mask, self.args.direction, self.args.cutoff_rate)
 
         item_encoded_layers = self.item_encoder(sequence_emb,
                                                 extended_attention_mask,
@@ -169,7 +207,7 @@ class SASRecModel(nn.Module):
         return x[idx_unshuffle]
 
     # moco
-    def moco_trans_encoder(self, input_ids):
+    def moco_trans_encoder(self, input_ids, cutoff=False, shuffle=False, noise=False):
 
         attention_mask = (input_ids > 0).long()
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)  # torch.int64
@@ -186,7 +224,10 @@ class SASRecModel(nn.Module):
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
-        sequence_emb = self.add_position_embedding(input_ids)
+        sequence_emb = self.add_position_embedding(input_ids,  shuffle=shuffle, noise=noise)
+        
+        if cutoff:
+            sequence_emb = self.cutoff_embeddings(sequence_emb, attention_mask, self.args.direction, self.args.cutoff_rate)
 
         size = len(sequence_emb) // 2
         sequence_emb = sequence_emb.cuda()

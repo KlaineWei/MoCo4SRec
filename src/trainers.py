@@ -179,14 +179,14 @@ class MoCo4SRecTrainer(Trainer):
             args
         )
 
-    def _one_pair_contrastive_learning(self, inputs):
+    def _one_pair_contrastive_learning(self, inputs, cutoff=False, shuffle=False, noise=False):
         """
         contrastive learning given one pair sequences (batch)
         inputs: [batch1_augmented_data, batch2_augmentated_data]
         """
         cl_batch = torch.cat(inputs, dim=0)
         cl_batch = cl_batch.to(self.device)
-        cl_sequence_output = self.model.transformer_encoder(cl_batch)
+        cl_sequence_output = self.model.transformer_encoder(cl_batch, cutoff=cutoff, shuffle=shuffle, noise=noise)
         # cf_sequence_output = cf_sequence_output[:, -1, :]
         cl_sequence_flatten = cl_sequence_output.view(cl_batch.shape[0], -1)
         # cf_output = self.projection(cf_sequence_flatten)
@@ -194,6 +194,22 @@ class MoCo4SRecTrainer(Trainer):
         cl_output_slice = torch.split(cl_sequence_flatten, batch_size)
         cl_loss = self.cf_criterion(cl_output_slice[0],
                                     cl_output_slice[1])
+        return cl_loss
+    
+    def _one_pair_contrastive_learning_sep(self, inputs, cutoff=False, shuffle=False, noise=False):
+        """
+        contrastive learning given one pair sequences (batch)
+        inputs: [batch1_augmented_data, batch2_augmentated_data]
+        """
+        inputs[0] = inputs[0].to(self.device)
+        inputs[1] = inputs[1].to(self.device)
+        cl_sequence_output1 = self.model.transformer_encoder(inputs[0], cutoff=cutoff, shuffle=shuffle, noise=noise)
+        cl_sequence_flatten1 = cl_sequence_output1.view(inputs[0].shape[0], -1)
+        cl_sequence_output2 = self.model.transformer_encoder(inputs[1], cutoff=cutoff, shuffle=shuffle, noise=noise)
+        cl_sequence_flatten2 = cl_sequence_output2.view(inputs[1].shape[0], -1)
+
+        cl_loss = self.cf_criterion(cl_sequence_flatten1,
+                                    cl_sequence_flatten2)
         return cl_loss
 
     def _debias_loss(self, cl_output_slice):
@@ -262,14 +278,14 @@ class MoCo4SRecTrainer(Trainer):
 
         return cl_loss
 
-    def _moco_pair_contrastive_learning(self, inputs):
+    def _moco_pair_contrastive_learning(self, inputs, cutoff=False, shuffle=False, noise=False):
         """
         contrastive learning given one pair sequences (batch)
         inputs: [batch1_augmented_data, batch2_augmentated_data]
         """
         moco_batch = torch.cat(inputs, dim=0)
         moco_batch = moco_batch.to(self.device)
-        moco_logits, moco_labels = self.model.moco_trans_encoder(moco_batch)
+        moco_logits, moco_labels = self.model.moco_trans_encoder(moco_batch, cutoff=cutoff, shuffle=shuffle, noise=noise)
         criterion = nn.CrossEntropyLoss().cuda(0)
         moco_loss = criterion(moco_logits,
                               moco_labels)
@@ -304,18 +320,18 @@ class MoCo4SRecTrainer(Trainer):
                 _, input_ids, target_pos, target_neg, _ = rec_batch
 
                 # ---------- recommendation task ---------------#
-                sequence_output = self.model.transformer_encoder(input_ids)
+                sequence_output = self.model.transformer_encoder(input_ids, cutoff=self.args.cutoff, shuffle=self.args.token_shuffle, noise=self.args.guassian_noise)
                 rec_loss = self.cross_entropy(sequence_output, target_pos, target_neg)
 
                 # ---------- contrastive learning task -------------#
                 cl_losses = []
                 for cl_batch in cl_batches:
-                    cl_loss = self._one_pair_contrastive_learning(cl_batch)
+                    cl_loss = self._one_pair_contrastive_learning_sep(cl_batch, cutoff=self.args.cutoff, shuffle=self.args.token_shuffle, noise=self.args.guassian_noise)
                     cl_losses.append(cl_loss)
 
                 moco_losses = []
                 for moco_batch in moco_batches:
-                    moco_loss = self._moco_pair_contrastive_learning(moco_batch)
+                    moco_loss = self._moco_pair_contrastive_learning(moco_batch, cutoff=self.args.cutoff, shuffle=self.args.token_shuffle, noise=self.args.guassian_noise)
                     # moco_loss = self._debias_contrastive_learning(moco_batch)
                     moco_losses.append(moco_loss)
 
