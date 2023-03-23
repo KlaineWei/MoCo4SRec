@@ -3,7 +3,14 @@
 Please cite our paper if you use this code.
 
 ```
-
+@article{wei2023moco4srec,
+  title={MoCo4SRec: A momentum contrastive learning framework for sequential recommendation},
+  author={Wei, Zihan and Wu, Ning and Li, Fengxia and Wang, Ke and Zhang, Wei},
+  journal={Expert Systems with Applications},
+  pages={119911},
+  year={2023},
+  publisher={Elsevier}
+}
 ```
 
 # Implementation
